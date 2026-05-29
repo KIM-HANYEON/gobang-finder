@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>고방 찾기</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- Search Card -->
+    <div class="search-card">
+      <div class="search-card__accent"></div>
+      <div class="search-card__inner">
+
+        <div class="search-row">
+          <span class="search-label">포함 본초</span>
+          <div class="tag-input" id="include-input"
+               data-placeholder="본초 입력 후 Enter  (예: 계지, 작약)"></div>
+          <div class="segment-btn" id="mode-toggle">
+            <button class="seg active" data-value="AND">AND</button>
+            <button class="seg"        data-value="OR">OR</button>
+          </div>
+          <button class="btn-search" id="search-btn">검  색</button>
+        </div>
+
+        <div class="search-row" style="margin-top:10px">
+          <span class="search-label">제외 본초</span>
+          <div class="tag-input tag-input--exclude" id="exclude-input"
+               data-placeholder="결과에서 제외할 본초 입력"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Body: Results + Detail -->
+    <div class="body-split">
+
+      <div class="results-panel">
+        <div class="panel-header">
+          <span class="panel-title">검색 결과</span>
+          <span class="badge" id="result-badge"></span>
+        </div>
+        <div class="results-list" id="results-list"></div>
+      </div>
+
+      <div class="splitter" id="splitter"></div>
+
+      <div class="detail-panel">
+        <div class="panel-header">
+          <span class="panel-title">처방 상세</span>
+        </div>
+        <div class="detail-content" id="detail-content"></div>
+      </div>
+
+    </div>
+
+    <!-- Bottom Bar -->
+    <div class="bottom-bar">
+      <div class="bottom-bar__actions">
+        <button class="btn-action" id="btn-copy">복사</button>
+        <button class="btn-action" id="btn-save">저장</button>
+        <button class="btn-action" id="btn-aliases">별칭 규칙</button>
+        <button class="btn-action" id="btn-reset">초기화</button>
+      </div>
+      <div class="status-bar">
+        <span id="status-text"></span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Aliases Modal -->
+  <div class="modal-overlay hidden" id="aliases-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>정규화 규칙</h2>
+        <button class="modal-close" id="modal-close">×</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
