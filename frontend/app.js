@@ -276,7 +276,8 @@ class App {
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   _highlight(text, targets) {
@@ -362,9 +363,9 @@ class App {
       el.dataset.no  = r.no;
       const star = r.full_match ? '★' : '  ';
       el.innerHTML = `
-        <span class="result-no">${r.no}</span>
+        <span class="result-no">${this._esc(r.no)}</span>
         <span class="result-name">${this._esc(r.name)}</span>
-        <span class="result-match">${star}${r.match_count}/${r.total}</span>`;
+        <span class="result-match">${star}${this._esc(r.match_count)}/${this._esc(r.total)}</span>`;
       el.addEventListener('click', () => this._selectItem(r.no));
       this.$results.appendChild(el);
     }
