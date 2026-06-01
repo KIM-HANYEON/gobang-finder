@@ -384,6 +384,11 @@ html, body {
   border-radius: 2px;
 }
 
+.herb-match--tag  { margin-right: 8px; padding: 1px 6px; }
+.search-row--gap  { margin-top: 10px; }
+.d-body--top      { margin-top: 14px; }
+.d-faint--top     { margin-top: 12px; }
+
 .kbd {
   display: inline-block;
   background: var(--card);

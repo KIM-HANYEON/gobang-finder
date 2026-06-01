@@ -451,7 +451,7 @@ class App {
     this.$detail.innerHTML = `
       <div class="d-title">고방 찾기</div>
       <div class="d-divider">${'─'.repeat(36)}</div>
-      <div class="d-section" style="margin-top:18px">사용 방법</div>
+      <div class="d-section">사용 방법</div>
       <div class="d-body">
         <div>①  포함 본초에 찾고 싶은 본초를 입력하고 <span class="kbd">Enter</span></div>
         <div>②  여러 본초는 쉼표로 구분하거나 순차 입력</div>
@@ -470,13 +470,13 @@ class App {
   _showEmpty(include) {
     this._detailText = '';
     const chips = include.map(h =>
-      `<span class="herb-match" style="margin-right:8px;padding:1px 6px">${this._esc(h)}</span>`
+      `<span class="herb-match herb-match--tag">${this._esc(h)}</span>`
     ).join('');
     this.$detail.innerHTML = `
       <div class="d-title">검색 결과 없음</div>
       <div class="d-divider">${'─'.repeat(36)}</div>
-      <div class="d-body" style="margin-top:14px">${chips}</div>
-      <div class="d-faint" style="margin-top:12px">
+      <div class="d-body d-body--top">${chips}</div>
+      <div class="d-faint d-faint--top">
         해당 조합을 포함하는 처방이 없습니다.<br>
         제외 본초를 줄이거나 OR 모드를 사용해 보세요.
       </div>`;
