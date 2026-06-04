@@ -7,6 +7,23 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+  <!-- Password Gate -->
+  <div class="pw-gate" id="pw-gate">
+    <div class="pw-card" id="pw-card">
+      <div class="pw-card__accent"></div>
+      <div class="pw-card__inner">
+        <div class="pw-title">고방 찾기</div>
+        <div class="pw-subtitle">비밀번호를 입력하세요</div>
+        <form id="pw-form" autocomplete="off">
+          <input type="password" id="pw-input" class="pw-input" placeholder="비밀번호" autofocus>
+          <p class="pw-error hidden" id="pw-error">비밀번호가 맞지 않습니다</p>
+          <button type="submit" class="btn-search pw-btn">확  인</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <div id="app">
 
     <!-- Search Card -->
@@ -39,7 +56,8 @@
 
       <div class="results-panel">
         <div class="panel-header">
-          <span class="panel-title">검색 결과</span>
+          <button class="tab-btn active" id="tab-search">검색 결과</button>
+          <button class="tab-btn"        id="tab-favs">즐겨찾기</button>
           <span class="badge" id="result-badge"></span>
         </div>
         <div class="results-list" id="results-list"></div>
@@ -50,6 +68,7 @@
       <div class="detail-panel">
         <div class="panel-header">
           <span class="panel-title">처방 상세</span>
+          <button class="btn-fav-detail hidden" id="btn-fav-detail" title="즐겨찾기 토글">☆</button>
         </div>
         <div class="detail-content" id="detail-content"></div>
       </div>

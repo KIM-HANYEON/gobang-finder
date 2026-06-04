@@ -1,5 +1,50 @@
 'use strict';
 
+// ── Password Gate ─────────────────────────────────────────────────────────────
+
+// Default password: "1234"
+// To change: run in browser console →
+//   crypto.subtle.digest('SHA-256', new TextEncoder().encode('newpassword'))
+//     .then(b => console.log(Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('')))
+// then replace _PW_HASH with the output.
+const _PW_HASH = '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4';
+
+async function _sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function initPasswordGate() {
+  const gate = document.getElementById('pw-gate');
+
+  if (sessionStorage.getItem('gobang_auth') === '1') {
+    gate.classList.add('hidden');
+    return;
+  }
+
+  const form  = document.getElementById('pw-form');
+  const input = document.getElementById('pw-input');
+  const err   = document.getElementById('pw-error');
+  const card  = document.getElementById('pw-card');
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const hash = await _sha256(input.value);
+    if (hash === _PW_HASH) {
+      sessionStorage.setItem('gobang_auth', '1');
+      gate.classList.add('hidden');
+      input.value = '';
+    } else {
+      err.classList.remove('hidden');
+      input.value = '';
+      input.focus();
+      card.classList.add('shake');
+      setTimeout(() => card.classList.remove('shake'), 400);
+    }
+  });
+}
+
+
 // ── TagInput ───────────────────────────────────────────────────────────────────
 
 class TagInput {
@@ -111,12 +156,15 @@ class TagInput {
 
 class App {
   constructor() {
-    this.formulas       = [];
-    this.aliases        = {};
-    this.aliasMap       = {};
-    this.currentInclude = new Set();
-    this.selectedNo     = null;
-    this._detailText    = '';
+    this.formulas        = [];
+    this.aliases         = {};
+    this.aliasMap        = {};
+    this.currentInclude  = new Set();
+    this.selectedNo      = null;
+    this._detailText     = '';
+    this._lastSearchData = null;
+    this._tab            = 'search';
+    this._favs           = new Set(JSON.parse(localStorage.getItem('gobang_favs') || '[]'));
 
     this._initDOM();
     this._bindEvents();
@@ -127,13 +175,16 @@ class App {
   // ── DOM init ─────────────────────────────────────────────────────────────────
 
   _initDOM() {
-    this.$include = document.getElementById('include-input');
-    this.$exclude = document.getElementById('exclude-input');
-    this.$mode    = document.getElementById('mode-toggle');
-    this.$results = document.getElementById('results-list');
-    this.$badge   = document.getElementById('result-badge');
-    this.$detail  = document.getElementById('detail-content');
-    this.$status  = document.getElementById('status-text');
+    this.$include   = document.getElementById('include-input');
+    this.$exclude   = document.getElementById('exclude-input');
+    this.$mode      = document.getElementById('mode-toggle');
+    this.$results   = document.getElementById('results-list');
+    this.$badge     = document.getElementById('result-badge');
+    this.$detail    = document.getElementById('detail-content');
+    this.$status    = document.getElementById('status-text');
+    this.$tabSearch = document.getElementById('tab-search');
+    this.$tabFavs   = document.getElementById('tab-favs');
+    this.$favDetail = document.getElementById('btn-fav-detail');
 
     this.includeInput = new TagInput(this.$include, { onReturn: () => this.search() });
     this.excludeInput = new TagInput(this.$exclude);
@@ -159,6 +210,13 @@ class App {
     document.getElementById('modal-close').addEventListener('click', () => this.closeModal());
     document.getElementById('aliases-modal').addEventListener('click', e => {
       if (e.target === e.currentTarget) this.closeModal();
+    });
+
+    this.$tabSearch.addEventListener('click', () => this._switchTab('search'));
+    this.$tabFavs.addEventListener('click',   () => this._switchTab('favs'));
+
+    this.$favDetail.addEventListener('click', () => {
+      if (this.selectedNo !== null) this.toggleFav(this.selectedNo);
     });
 
     document.addEventListener('keydown', e => {
@@ -229,6 +287,96 @@ class App {
     this.includeInput.aliasMap = this.aliasMap;
     this.excludeInput.aliasMap = this.aliasMap;
   }
+
+  // ── favorites ────────────────────────────────────────────────────────────────
+
+  isFav(no) { return this._favs.has(no); }
+
+  _saveFavs() {
+    localStorage.setItem('gobang_favs', JSON.stringify([...this._favs]));
+  }
+
+  toggleFav(no) {
+    if (this._favs.has(no)) this._favs.delete(no);
+    else this._favs.add(no);
+    this._saveFavs();
+
+    this.$results.querySelectorAll(`.result-fav[data-no="${no}"]`).forEach(btn => {
+      btn.classList.toggle('active', this._favs.has(no));
+    });
+    if (this.selectedNo === no) this._updateDetailFavBtn();
+    if (this._tab === 'favs') this._renderFavorites();
+  }
+
+  _saveFavoritesExport() {
+    this._saveFavs();
+  }
+
+  _updateDetailFavBtn() {
+    const btn = this.$favDetail;
+    if (!btn) return;
+    if (this.selectedNo === null) {
+      btn.classList.add('hidden');
+      return;
+    }
+    btn.classList.remove('hidden');
+    const fav = this.isFav(this.selectedNo);
+    btn.textContent = fav ? '★' : '☆';
+    btn.classList.toggle('active', fav);
+  }
+
+  // ── tabs ─────────────────────────────────────────────────────────────────────
+
+  _switchTab(tab) {
+    this._tab = tab;
+    this.$tabSearch.classList.toggle('active', tab === 'search');
+    this.$tabFavs.classList.toggle('active',   tab === 'favs');
+    if (tab === 'favs') {
+      this._renderFavorites();
+    } else {
+      if (this._lastSearchData) {
+        this._renderResults(this._lastSearchData);
+        if (this.selectedNo !== null) {
+          const el = this.$results.querySelector(`.result-item[data-no="${this.selectedNo}"]`);
+          if (el) { el.classList.add('selected'); el.scrollIntoView({ block: 'nearest' }); }
+        }
+      } else {
+        this.$results.innerHTML = '';
+        this.$badge.textContent = '';
+      }
+    }
+  }
+
+  _renderFavorites() {
+    this.$results.innerHTML = '';
+    const favFormulas = this.formulas.filter(f => this._favs.has(f.no));
+    if (!favFormulas.length) {
+      this.$badge.textContent = '';
+      this.$results.innerHTML =
+        '<div class="favs-empty">즐겨찾기가 없습니다<br>' +
+        '<span>검색 결과에서 ★을 누르면 추가됩니다</span></div>';
+      return;
+    }
+    this.$badge.textContent = ` ${favFormulas.length} `;
+    for (const f of favFormulas) {
+      const el = document.createElement('div');
+      el.className  = 'result-item' + (this.selectedNo === f.no ? ' selected' : '');
+      el.dataset.no = f.no;
+      el.innerHTML  = `
+        <span class="result-no">${this._esc(f.no)}</span>
+        <span class="result-name">${this._esc(f.name)}</span>
+        <span class="result-match"></span>
+        <button class="result-fav active" data-no="${f.no}" title="즐겨찾기 삭제">★</button>`;
+      el.addEventListener('click', () => this._selectItem(f.no));
+      el.querySelector('.result-fav').addEventListener('click', e => {
+        e.stopPropagation();
+        this.toggleFav(f.no);
+      });
+      this.$results.appendChild(el);
+    }
+  }
+
+  // ── search logic ─────────────────────────────────────────────────────────────
 
   _searchLocal(includeHerbs, excludeHerbs, mode) {
     const incSet   = new Set(includeHerbs);
@@ -330,10 +478,13 @@ class App {
     this.currentInclude = new Set(include);
     const mode = this._mode();
 
+    if (this._tab !== 'search') this._switchTab('search');
+
     try {
       const res = this._searchLocal(include, exclude, mode);
       if (!res.ok) { this._setStatus('검색 오류: ' + (res.error || ''), 'err'); return; }
 
+      this._lastSearchData = res;
       this._renderResults(res);
 
       let status = `모드: ${mode}  ·  포함: ${include.join(', ')}`;
@@ -344,6 +495,8 @@ class App {
       if (res.results.length) {
         this._selectItem(res.results[0].no);
       } else {
+        this.selectedNo = null;
+        this._updateDetailFavBtn();
         this._showEmpty(include);
       }
     } catch (e) {
@@ -361,12 +514,18 @@ class App {
       const el = document.createElement('div');
       el.className   = 'result-item' + (r.full_match ? ' full-match' : '');
       el.dataset.no  = r.no;
-      const star = r.full_match ? '★' : '  ';
+      const star    = r.full_match ? '★' : '  ';
+      const favCls  = this.isFav(r.no) ? ' active' : '';
       el.innerHTML = `
         <span class="result-no">${this._esc(r.no)}</span>
         <span class="result-name">${this._esc(r.name)}</span>
-        <span class="result-match">${star}${this._esc(r.match_count)}/${this._esc(r.total)}</span>`;
+        <span class="result-match">${star}${this._esc(r.match_count)}/${this._esc(r.total)}</span>
+        <button class="result-fav${favCls}" data-no="${r.no}" title="즐겨찾기">★</button>`;
       el.addEventListener('click', () => this._selectItem(r.no));
+      el.querySelector('.result-fav').addEventListener('click', e => {
+        e.stopPropagation();
+        this.toggleFav(r.no);
+      });
       this.$results.appendChild(el);
     }
   }
@@ -384,9 +543,11 @@ class App {
     const formula = this.formulas.find(f => f.no === no);
     if (!formula) {
       this.$detail.innerHTML = `<span class="d-faint">처방을 찾을 수 없습니다.</span>`;
+      this._updateDetailFavBtn();
       return;
     }
     this._renderDetail(formula);
+    this._updateDetailFavBtn();
   }
 
   // ── detail ───────────────────────────────────────────────────────────────────
@@ -457,6 +618,7 @@ class App {
         <div>②  여러 본초는 쉼표로 구분하거나 순차 입력</div>
         <div>③  AND: 모두 포함 &nbsp;/&nbsp; OR: 하나라도 포함</div>
         <div>④  제외 본초에 입력하면 해당 처방을 결과에서 제외</div>
+        <div>⑤  검색 결과에서 ★을 눌러 즐겨찾기에 추가</div>
       </div>
       <div class="d-section">단축키</div>
       <div class="d-faint">
@@ -552,15 +714,19 @@ class App {
   reset() {
     this.includeInput.clear();
     this.excludeInput.clear();
-    this.currentInclude = new Set();
-    this.selectedNo     = null;
-    this._detailText    = '';
+    this.currentInclude  = new Set();
+    this.selectedNo      = null;
+    this._detailText     = '';
+    this._lastSearchData = null;
     this.$results.innerHTML = '';
     this.$badge.textContent = '';
+    this._switchTab('search');
     this._showWelcome();
+    this._updateDetailFavBtn();
     this._setStatus(`처방 ${this.formulas.length}개 로드 완료`, 'ok');
   }
 }
 
 // ── Entry ─────────────────────────────────────────────────────────────────────
-const app = new App();     // exposed globally so modal footer button can call app.closeModal()
+initPasswordGate();
+const app = new App();
